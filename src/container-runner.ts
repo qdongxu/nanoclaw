@@ -138,33 +138,46 @@ function buildVolumeMounts(
   ]);
 
   // Read host's Claude settings to get the model tier (opus/sonnet/haiku)
-  const hostSettingsPath = path.join(process.env.HOME || '/root', '.claude', 'settings.json');
+  const hostSettingsPath = path.join(
+    process.env.HOME || '/root',
+    '.claude',
+    'settings.json',
+  );
   let hostModel: string | undefined;
   if (fs.existsSync(hostSettingsPath)) {
     try {
-      const hostSettings = JSON.parse(fs.readFileSync(hostSettingsPath, 'utf-8'));
+      const hostSettings = JSON.parse(
+        fs.readFileSync(hostSettingsPath, 'utf-8'),
+      );
       hostModel = hostSettings.model;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   let settings: { env?: Record<string, string>; model?: string } = {};
   if (fs.existsSync(settingsFile)) {
     try {
       settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
-    } catch { /* ignore parse errors */ }
+    } catch {
+      /* ignore parse errors */
+    }
   }
   if (!settings.env) settings.env = {};
   settings.env.ANTHROPIC_BASE_URL = anthropicBaseUrl;
 
   // Pass model configuration from host to container
   if (hostEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL) {
-    settings.env.ANTHROPIC_DEFAULT_HAIKU_MODEL = hostEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL;
+    settings.env.ANTHROPIC_DEFAULT_HAIKU_MODEL =
+      hostEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL;
   }
   if (hostEnv.ANTHROPIC_DEFAULT_SONNET_MODEL) {
-    settings.env.ANTHROPIC_DEFAULT_SONNET_MODEL = hostEnv.ANTHROPIC_DEFAULT_SONNET_MODEL;
+    settings.env.ANTHROPIC_DEFAULT_SONNET_MODEL =
+      hostEnv.ANTHROPIC_DEFAULT_SONNET_MODEL;
   }
   if (hostEnv.ANTHROPIC_DEFAULT_OPUS_MODEL) {
-    settings.env.ANTHROPIC_DEFAULT_OPUS_MODEL = hostEnv.ANTHROPIC_DEFAULT_OPUS_MODEL;
+    settings.env.ANTHROPIC_DEFAULT_OPUS_MODEL =
+      hostEnv.ANTHROPIC_DEFAULT_OPUS_MODEL;
   }
   if (hostEnv.ANTHROPIC_MODEL) {
     settings.env.ANTHROPIC_MODEL = hostEnv.ANTHROPIC_MODEL;
@@ -218,9 +231,16 @@ function buildVolumeMounts(
   // Per-group IPC namespace: each group gets its own IPC directory
   // This prevents cross-group privilege escalation via IPC
   const groupIpcDir = resolveGroupIpcPath(group.folder);
-  fs.mkdirSync(path.join(groupIpcDir, 'messages'), { recursive: true });
-  fs.mkdirSync(path.join(groupIpcDir, 'tasks'), { recursive: true });
-  fs.mkdirSync(path.join(groupIpcDir, 'input'), { recursive: true });
+  const ipcMessagesDir = path.join(groupIpcDir, 'messages');
+  const ipcTasksDir = path.join(groupIpcDir, 'tasks');
+  const ipcInputDir = path.join(groupIpcDir, 'input');
+  fs.mkdirSync(ipcMessagesDir, { recursive: true });
+  fs.mkdirSync(ipcTasksDir, { recursive: true });
+  fs.mkdirSync(ipcInputDir, { recursive: true });
+  // Make IPC dirs world-writable so container (with different UID mapping) can write
+  fs.chmodSync(ipcMessagesDir, 0o777);
+  fs.chmodSync(ipcTasksDir, 0o777);
+  fs.chmodSync(ipcInputDir, 0o777);
   mounts.push({
     hostPath: groupIpcDir,
     containerPath: '/workspace/ipc',

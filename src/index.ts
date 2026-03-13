@@ -27,6 +27,7 @@ import {
   PROXY_BIND_HOST,
 } from './container-runtime.js';
 import {
+  clearSession,
   getAllChats,
   getAllRegisteredGroups,
   getAllSessions,
@@ -331,12 +332,18 @@ async function runAgent(
         { group: group.name, error: output.error },
         'Container agent error',
       );
+      // Clear corrupted session so the next request starts fresh
+      delete sessions[group.folder];
+      clearSession(group.folder);
       return 'error';
     }
 
     return 'success';
   } catch (err) {
     logger.error({ group: group.name, err }, 'Agent error');
+    // Clear session on error to avoid reusing corrupted state
+    delete sessions[group.folder];
+    clearSession(group.folder);
     return 'error';
   }
 }

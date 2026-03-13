@@ -76,8 +76,7 @@ export class FeishuChannel implements Channel {
 
       // Get sender info
       const senderId = sender?.sender_id?.user_id || 'unknown';
-      const senderName =
-        sender?.sender_id?.user_id || senderId;
+      const senderName = sender?.sender_id?.user_id || senderId;
 
       // Create timestamp from message.create_time (Unix timestamp in milliseconds)
       const timestamp = message.create_time
@@ -99,7 +98,10 @@ export class FeishuChannel implements Channel {
         is_bot_message: false,
       });
     } catch (err) {
-      logger.error({ err, channel: this.name }, 'Error handling Feishu message');
+      logger.error(
+        { err, channel: this.name },
+        'Error handling Feishu message',
+      );
     }
   }
 
@@ -140,7 +142,10 @@ export class FeishuChannel implements Channel {
           },
         });
       } catch (err) {
-        logger.error({ err, channel: this.name, chatId }, 'Failed to send Feishu message');
+        logger.error(
+          { err, channel: this.name, chatId },
+          'Failed to send Feishu message',
+        );
         throw err;
       }
     }

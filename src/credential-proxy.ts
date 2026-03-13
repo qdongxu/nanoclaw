@@ -91,12 +91,15 @@ export function startCredentialProxy(
         const fullPath = basePath + req.url;
 
         // Debug: log what we're sending
-        logger.info({
-          url: `${upstreamUrl.hostname}${fullPath}`,
-          method: req.method,
-          headers: Object.keys(headers),
-          bodyLength: body.length
-        }, 'Credential proxy forwarding request');
+        logger.info(
+          {
+            url: `${upstreamUrl.hostname}${fullPath}`,
+            method: req.method,
+            headers: Object.keys(headers),
+            bodyLength: body.length,
+          },
+          'Credential proxy forwarding request',
+        );
 
         const upstream = makeRequest(
           {
