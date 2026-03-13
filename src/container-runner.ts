@@ -16,6 +16,7 @@ import {
   IDLE_TIMEOUT,
   TIMEZONE,
 } from './config.js';
+import { readEnvFile } from './env.js';
 import { resolveGroupFolderPath, resolveGroupIpcPath } from './group-folder.js';
 import { logger } from './logger.js';
 import {
@@ -123,28 +124,79 @@ function buildVolumeMounts(
   );
   fs.mkdirSync(groupSessionsDir, { recursive: true });
   const settingsFile = path.join(groupSessionsDir, 'settings.json');
-  if (!fs.existsSync(settingsFile)) {
-    fs.writeFileSync(
-      settingsFile,
-      JSON.stringify(
-        {
-          env: {
-            // Enable agent swarms (subagent orchestration)
-            // https://code.claude.com/docs/en/agent-teams#orchestrate-teams-of-claude-code-sessions
-            CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
-            // Load CLAUDE.md from additional mounted directories
-            // https://code.claude.com/docs/en/memory#load-memory-from-additional-directories
-            CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
-            // Enable Claude's memory feature (persists user preferences between sessions)
-            // https://code.claude.com/docs/en/memory#manage-auto-memory
-            CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
-          },
-        },
-        null,
-        2,
-      ) + '\n',
-    );
+
+  // Always update settings.json with current ANTHROPIC_BASE_URL
+  // The CLI reads this from settings.json, not from environment variables
+  const anthropicBaseUrl = `http://${CONTAINER_HOST_GATEWAY}:${CREDENTIAL_PROXY_PORT}`;
+
+  // Read model configuration from host .env
+  const hostEnv = readEnvFile([
+    'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+    'ANTHROPIC_DEFAULT_SONNET_MODEL',
+    'ANTHROPIC_DEFAULT_OPUS_MODEL',
+    'ANTHROPIC_MODEL',
+  ]);
+
+  // Read host's Claude settings to get the model tier (opus/sonnet/haiku)
+  const hostSettingsPath = path.join(process.env.HOME || '/root', '.claude', 'settings.json');
+  let hostModel: string | undefined;
+  if (fs.existsSync(hostSettingsPath)) {
+    try {
+      const hostSettings = JSON.parse(fs.readFileSync(hostSettingsPath, 'utf-8'));
+      hostModel = hostSettings.model;
+    } catch { /* ignore */ }
   }
+
+  let settings: { env?: Record<string, string>; model?: string } = {};
+  if (fs.existsSync(settingsFile)) {
+    try {
+      settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+    } catch { /* ignore parse errors */ }
+  }
+  if (!settings.env) settings.env = {};
+  settings.env.ANTHROPIC_BASE_URL = anthropicBaseUrl;
+
+  // Pass model configuration from host to container
+  if (hostEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL) {
+    settings.env.ANTHROPIC_DEFAULT_HAIKU_MODEL = hostEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL;
+  }
+  if (hostEnv.ANTHROPIC_DEFAULT_SONNET_MODEL) {
+    settings.env.ANTHROPIC_DEFAULT_SONNET_MODEL = hostEnv.ANTHROPIC_DEFAULT_SONNET_MODEL;
+  }
+  if (hostEnv.ANTHROPIC_DEFAULT_OPUS_MODEL) {
+    settings.env.ANTHROPIC_DEFAULT_OPUS_MODEL = hostEnv.ANTHROPIC_DEFAULT_OPUS_MODEL;
+  }
+  if (hostEnv.ANTHROPIC_MODEL) {
+    settings.env.ANTHROPIC_MODEL = hostEnv.ANTHROPIC_MODEL;
+  }
+
+  // Pass model tier from host settings (e.g., "opus" to use OPUS_MODEL)
+  if (hostModel) {
+    settings.model = hostModel;
+  }
+
+  fs.writeFileSync(
+    settingsFile,
+    JSON.stringify(
+      {
+        ...settings,
+        env: {
+          ...settings.env,
+          // Enable agent swarms (subagent orchestration)
+          // https://code.claude.com/docs/en/agent-teams#orchestrate-teams-of-claude-code-sessions
+          CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
+          // Load CLAUDE.md from additional mounted directories
+          // https://code.claude.com/docs/en/memory#load-memory-from-additional-directories
+          CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
+          // Enable Claude's memory feature (persists user preferences between sessions)
+          // https://code.claude.com/docs/en/memory#manage-auto-memory
+          CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
+        },
+      },
+      null,
+      2,
+    ) + '\n',
+  );
 
   // Sync skills from container/skills/ into each group's .claude/skills/
   const skillsSrc = path.join(process.cwd(), 'container', 'skills');

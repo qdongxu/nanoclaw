@@ -50,17 +50,24 @@ export function startCredentialProxy(
       req.on('data', (c) => chunks.push(c));
       req.on('end', () => {
         const body = Buffer.concat(chunks);
+
+        // Only forward necessary headers, not all incoming headers
+        // Some providers (like BigModel) reject requests with extra headers
         const headers: Record<string, string | number | string[] | undefined> =
           {
-            ...(req.headers as Record<string, string>),
             host: upstreamUrl.host,
+            'content-type': req.headers['content-type'] || 'application/json',
             'content-length': body.length,
+            accept: req.headers['accept'] || 'application/json',
           };
 
-        // Strip hop-by-hop headers that must not be forwarded by proxies
-        delete headers['connection'];
-        delete headers['keep-alive'];
-        delete headers['transfer-encoding'];
+        // Forward anthropic-specific headers if present
+        if (req.headers['anthropic-version']) {
+          headers['anthropic-version'] = req.headers['anthropic-version'];
+        }
+        if (req.headers['anthropic-beta']) {
+          headers['anthropic-beta'] = req.headers['anthropic-beta'];
+        }
 
         if (authMode === 'api-key') {
           // API key mode: inject x-api-key on every request
@@ -79,11 +86,23 @@ export function startCredentialProxy(
           }
         }
 
+        // Build path: prepend base path from ANTHROPIC_BASE_URL if present
+        const basePath = upstreamUrl.pathname.replace(/\/$/, '');
+        const fullPath = basePath + req.url;
+
+        // Debug: log what we're sending
+        logger.info({
+          url: `${upstreamUrl.hostname}${fullPath}`,
+          method: req.method,
+          headers: Object.keys(headers),
+          bodyLength: body.length
+        }, 'Credential proxy forwarding request');
+
         const upstream = makeRequest(
           {
             hostname: upstreamUrl.hostname,
             port: upstreamUrl.port || (isHttps ? 443 : 80),
-            path: req.url,
+            path: fullPath,
             method: req.method,
             headers,
           } as RequestOptions,

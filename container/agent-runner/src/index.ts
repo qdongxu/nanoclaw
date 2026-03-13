@@ -467,6 +467,25 @@ async function runQuery(
 async function main(): Promise<void> {
   let containerInput: ContainerInput;
 
+  // Debug: Print all environment variables
+  log('=== ENVIRONMENT VARIABLES ===');
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.includes('ANTHROPIC') || key.includes('CLAUDE') || key.includes('API')) {
+      log(`  ${key}=${value}`);
+    }
+  }
+  log('=== END ENV ===');
+
+  // Debug: Print settings.json if it exists
+  const settingsPath = '/home/node/.claude/settings.json';
+  if (fs.existsSync(settingsPath)) {
+    log(`=== SETTINGS.JSON ===`);
+    log(fs.readFileSync(settingsPath, 'utf-8'));
+    log(`=== END SETTINGS ===`);
+  } else {
+    log('No settings.json found');
+  }
+
   try {
     const stdinData = await readStdin();
     containerInput = JSON.parse(stdinData);

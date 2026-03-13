@@ -12,7 +12,11 @@ import { logger } from './logger.js';
 export const CONTAINER_RUNTIME_BIN = 'podman';
 
 /** Hostname containers use to reach the host machine. */
-export const CONTAINER_HOST_GATEWAY = 'host.docker.internal';
+export const CONTAINER_HOST_GATEWAY =
+  process.env.CONTAINER_HOST_GATEWAY ||
+  (os.platform() === 'linux' && CONTAINER_RUNTIME_BIN === 'podman'
+    ? 'host.containers.internal'
+    : 'host.docker.internal');
 
 /**
  * Address the credential proxy binds to.
@@ -46,10 +50,15 @@ function detectProxyBindHost(): string {
 
 /** CLI args needed for the container to resolve the host gateway. */
 export function hostGatewayArgs(): string[] {
-  // On Linux, host.docker.internal isn't built-in — add it explicitly
+  // Podman provides host.containers.internal automatically, no extra args needed
+  if (CONTAINER_RUNTIME_BIN === 'podman') {
+    return [];
+  }
+  // Docker on Linux needs explicit host.docker.internal mapping
   if (os.platform() === 'linux') {
     return ['--add-host=host.docker.internal:host-gateway'];
   }
+  // Docker Desktop on macOS/Windows provides host.docker.internal automatically
   return [];
 }
 
