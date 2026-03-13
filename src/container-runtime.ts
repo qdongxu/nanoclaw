@@ -9,7 +9,7 @@ import os from 'os';
 import { logger } from './logger.js';
 
 /** The container runtime binary name. */
-export const CONTAINER_RUNTIME_BIN = 'docker';
+export const CONTAINER_RUNTIME_BIN = 'podman';
 
 /** Hostname containers use to reach the host machine. */
 export const CONTAINER_HOST_GATEWAY = 'host.docker.internal';
@@ -17,7 +17,7 @@ export const CONTAINER_HOST_GATEWAY = 'host.docker.internal';
 /**
  * Address the credential proxy binds to.
  * Docker Desktop (macOS): 127.0.0.1 — the VM routes host.docker.internal to loopback.
- * Docker (Linux): bind to the docker0 bridge IP so only containers can reach it,
+ * Docker/Podman (Linux): bind to the bridge IP so only containers can reach it,
  *   falling back to 0.0.0.0 if the interface isn't found.
  */
 export const PROXY_BIND_HOST =
@@ -30,12 +30,16 @@ function detectProxyBindHost(): string {
   // Check /proc filesystem, not env vars — WSL_DISTRO_NAME isn't set under systemd.
   if (fs.existsSync('/proc/sys/fs/binfmt_misc/WSLInterop')) return '127.0.0.1';
 
-  // Bare-metal Linux: bind to the docker0 bridge IP instead of 0.0.0.0
+  // Bare-metal Linux: bind to the bridge IP instead of 0.0.0.0
+  // Check for Docker (docker0) or Podman (podman0, cni-podman0) interfaces
   const ifaces = os.networkInterfaces();
-  const docker0 = ifaces['docker0'];
-  if (docker0) {
-    const ipv4 = docker0.find((a) => a.family === 'IPv4');
-    if (ipv4) return ipv4.address;
+  const bridgeNames = ['docker0', 'podman0', 'cni-podman0', 'cni0'];
+  for (const name of bridgeNames) {
+    const bridge = ifaces[name];
+    if (bridge) {
+      const ipv4 = bridge.find((a) => a.family === 'IPv4');
+      if (ipv4) return ipv4.address;
+    }
   }
   return '0.0.0.0';
 }
@@ -85,10 +89,10 @@ export function ensureContainerRuntimeRunning(): void {
       '║  Agents cannot run without a container runtime. To fix:        ║',
     );
     console.error(
-      '║  1. Ensure Docker is installed and running                     ║',
+      `║  1. Ensure ${CONTAINER_RUNTIME_BIN} is installed and running               ║`,
     );
     console.error(
-      '║  2. Run: docker info                                           ║',
+      `║  2. Run: ${CONTAINER_RUNTIME_BIN} info                                      ║`,
     );
     console.error(
       '║  3. Restart NanoClaw                                           ║',

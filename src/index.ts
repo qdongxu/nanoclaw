@@ -536,8 +536,9 @@ async function main(): Promise<void> {
     await channel.connect();
   }
   if (channels.length === 0) {
-    logger.fatal('No channels connected');
-    process.exit(1);
+    logger.warn(
+      'No channels connected — running in headless mode. Add channels with /add-whatsapp, /add-telegram, etc.',
+    );
   }
 
   // Start subsystems (independently of connection handler)

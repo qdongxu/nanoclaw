@@ -53,8 +53,8 @@ export async function run(args: string[]): Promise<void> {
     process.exit(2);
   }
 
-  if (runtime === 'docker') {
-    if (!commandExists('docker')) {
+  if (runtime === 'podman') {
+    if (!commandExists('podman')) {
       emitStatus('SETUP_CONTAINER', {
         RUNTIME: runtime,
         IMAGE: image,
@@ -67,7 +67,7 @@ export async function run(args: string[]): Promise<void> {
       process.exit(2);
     }
     try {
-      execSync('docker info', { stdio: 'ignore' });
+      execSync('podman info', { stdio: 'ignore' });
     } catch {
       emitStatus('SETUP_CONTAINER', {
         RUNTIME: runtime,
@@ -82,7 +82,7 @@ export async function run(args: string[]): Promise<void> {
     }
   }
 
-  if (!['apple-container', 'docker'].includes(runtime)) {
+  if (!['apple-container', 'podman'].includes(runtime)) {
     emitStatus('SETUP_CONTAINER', {
       RUNTIME: runtime,
       IMAGE: image,
@@ -96,8 +96,8 @@ export async function run(args: string[]): Promise<void> {
   }
 
   const buildCmd =
-    runtime === 'apple-container' ? 'container build' : 'docker build';
-  const runCmd = runtime === 'apple-container' ? 'container' : 'docker';
+    runtime === 'apple-container' ? 'container build' : 'podman build';
+  const runCmd = runtime === 'apple-container' ? 'container' : 'podman';
 
   // Build
   let buildOk = false;

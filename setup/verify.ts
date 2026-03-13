@@ -89,8 +89,8 @@ export async function run(_args: string[]): Promise<void> {
     containerRuntime = 'apple-container';
   } catch {
     try {
-      execSync('docker info', { stdio: 'ignore' });
-      containerRuntime = 'docker';
+      execSync('podman info', { stdio: 'ignore' });
+      containerRuntime = 'podman';
     } catch {
       // No runtime
     }
@@ -166,11 +166,11 @@ export async function run(_args: string[]): Promise<void> {
   }
 
   // Determine overall status
+  // Channels and groups are optional - user may set them up later
   const status =
     service === 'running' &&
-    credentials !== 'missing' &&
-    anyChannelConfigured &&
-    registeredGroups > 0
+    containerRuntime !== 'none' &&
+    credentials !== 'missing'
       ? 'success'
       : 'failed';
 
