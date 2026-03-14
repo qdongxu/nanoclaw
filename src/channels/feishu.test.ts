@@ -28,6 +28,13 @@ vi.mock('@larksuiteoapi/node-sdk', () => {
       warn: 'warn',
       error: 'error',
     },
+    AppType: {
+      SelfBuild: 'SelfBuild',
+    },
+    Domain: {
+      Feishu: 'Feishu',
+      Lark: 'Lark',
+    },
   };
 });
 

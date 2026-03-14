@@ -450,11 +450,13 @@ async function runQuery(
     if (message.type === 'result') {
       resultCount++;
       const textResult = 'result' in message ? (message as { result?: string }).result : null;
+      const isError = message.subtype === 'error_during_execution';
       log(`Result #${resultCount}: subtype=${message.subtype}${textResult ? ` text=${textResult.slice(0, 200)}` : ''}`);
       writeOutput({
-        status: 'success',
+        status: isError ? 'error' : 'success',
         result: textResult || null,
-        newSessionId
+        newSessionId,
+        error: isError ? 'Agent execution error' : undefined,
       });
     }
   }

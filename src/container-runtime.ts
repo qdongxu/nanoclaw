@@ -75,6 +75,15 @@ export function stopContainer(name: string): string {
   return `${CONTAINER_RUNTIME_BIN} stop ${name}`;
 }
 
+/** Returns CLI args for user namespace (podman needs --userns=keep-id for file permissions). */
+export function usernsArgs(): string[] {
+  // Podman on Linux needs --userns=keep-id to preserve host UID/GID for bind mount access
+  if (CONTAINER_RUNTIME_BIN === 'podman' && os.platform() === 'linux') {
+    return ['--userns=keep-id'];
+  }
+  return [];
+}
+
 /** Ensure the container runtime is running, starting it if needed. */
 export function ensureContainerRuntimeRunning(): void {
   try {
