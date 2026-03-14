@@ -9,7 +9,10 @@ import {
   TIMEZONE,
   TRIGGER_PATTERN,
 } from './config.js';
-import { startCredentialProxy } from './credential-proxy.js';
+import {
+  startCredentialProxy,
+  loadMcpServersConfig,
+} from './credential-proxy.js';
 import './channels/index.js';
 import {
   getChannelFactory,
@@ -479,6 +482,7 @@ async function main(): Promise<void> {
   loadState();
 
   // Start credential proxy (containers route API calls through this)
+  loadMcpServersConfig(); // Load MCP server configs for proxying
   const proxyServer = await startCredentialProxy(
     CREDENTIAL_PROXY_PORT,
     PROXY_BIND_HOST,

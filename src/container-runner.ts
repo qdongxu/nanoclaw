@@ -27,7 +27,7 @@ import {
   stopContainer,
   usernsArgs,
 } from './container-runtime.js';
-import { detectAuthMode } from './credential-proxy.js';
+import { detectAuthMode, getMcpServersConfig } from './credential-proxy.js';
 import { validateAdditionalMounts } from './mount-security.js';
 import { RegisteredGroup } from './types.js';
 
@@ -156,7 +156,11 @@ function buildVolumeMounts(
     }
   }
 
-  let settings: { env?: Record<string, string>; model?: string } = {};
+  let settings: {
+    env?: Record<string, string>;
+    model?: string;
+    mcpServers?: Record<string, { type: string; url: string }>;
+  } = {};
   if (fs.existsSync(settingsFile)) {
     try {
       settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
@@ -187,6 +191,19 @@ function buildVolumeMounts(
   // Pass model tier from host settings (e.g., "opus" to use OPUS_MODEL)
   if (hostModel) {
     settings.model = hostModel;
+  }
+
+  // Pass MCP servers through proxy (tokens stay on host)
+  const mcpServersConfig = getMcpServersConfig();
+  if (Object.keys(mcpServersConfig).length > 0) {
+    settings.mcpServers = {};
+    for (const [name, config] of Object.entries(mcpServersConfig)) {
+      // Route MCP requests through the credential proxy
+      settings.mcpServers[name] = {
+        type: config.type,
+        url: `http://${CONTAINER_HOST_GATEWAY}:${CREDENTIAL_PROXY_PORT}/mcp/${name}`,
+      };
+    }
   }
 
   fs.writeFileSync(
